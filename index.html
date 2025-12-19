@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Онлайн тюнер</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>Онлайн тюнер</h1>
+      <p>Простой и красивый тюнер, который определяет ноту по частоте из микрофона</p>
+    </header>
+
+    <main class="tuner-card" aria-label="онлайн тюнер">
+      <div class="meters">
+        <div class="note-pill" id="note">—</div>
+        <div class="frequency" id="frequency">Hz: —</div>
+        <div class="cent" id="cent">Cent: —</div>
+      </div>
+
+      <div class="visuals">
+        <canvas id="wave" width="600" height="120" aria-label="волна аудио"></canvas>
+      </div>
+
+      <div class="controls">
+        <button id="startBtn" class="btn">Разрешить доступ к микрофону</button>
+        <button id="stopBtn" class="btn" disabled>Остановить</button>
+      </div>
+    </main>
+  </div>
+
+  <script src="tuner.js"></script>
+</body>
+</html>
