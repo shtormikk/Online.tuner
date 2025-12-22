@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Онлайн-тюнер для гитары</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        body {
+            background: #121212;
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+        }
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+        }
+        .note-display {
+            font-size: 3rem;
+            font-weight: bold;
+            margin: 30px 0;
+            color: #4CAF50;
+        }
+        .frequency {
+            font-size: 1.2rem;
+            color: #aaa;
+            margin-bottom: 30px;
+        }
+        .tuning-bar {
+            height: 8px;
+            background: #333;
+            border-radius: 4px;
+            margin: 20px auto;
+            overflow: hidden;
+            position: relative;
+        }
+        .indicator {
+            height: 100%;
+            width: 0;
+            background: #4CAF50;
+            transition: width 0.3s ease;
+            position: absolute;
+            left: 50%;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin: 10px;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #3e8e41;
+        }
+        select {
+            padding: 12px;
+            border-radius: 4px;
+            border: 1px solid #444;
+            background: #222;
+            color: white;
+            margin: 10px 0;
+            width: 100%;
+            font-size: 1rem;
+        }
+        .status {
+            margin-top: 20px;
+            font-size: 0.9rem;
+            color: #ff9800;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Онлайн-тюнер</h1>
+        
+        <div class="note-display" id="note">—</div>
+        <div class="frequency" id="frequency">0 Гц</div>
+        
+        <div class="tuning-bar">
+            <div class="indicator" id="indicator"></div>
+        </div>
+        
+        <select id="instrument">
+            <option value="guitar">Гитара (EADGBE)</option>
+            <option value="bass">Бас-гитара (EADG)</option>
+            <option value="ukulele">Укулеле (GCEA)</option>
+        </select>
+        
+        <button id="startBtn">Начать тюнинг</button>
+        <button id="stopBtn" style="display:none;">Остановить</button>
+        
+        <div class="status" id="status"></div>
+    </div>
+
+    <script>
+        // Эталонные частоты для разных инструментов (в Гц)
+        const TUNING_PRESETS = {
+            guitar: [82.41, 110.00, 146.83, 196.00, 246.94, 329.63], // EADGBE (6-струнная)
+            bass: [41.20, 55.00, 73.42, 98.00], // EADG (4-струнная)
+            ukulele: [196.00, 220.00, 246.94, 329.63] // GCEA (сопрано)
+        };
+
+        // Названия нот
+        const NOTE_NAMES = ['E', 'A', 'D', 'G', 'B', 'E'];
+
+        // Элементы интерфейса
+        const noteDisplay = document.getElementById('note');
+        const frequencyDisplay = document.getElementById('frequency');
+        const indicator = document.getElementById('indicator');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const instrumentSelect = document.getElementById('instrument');
+        const status = document.getElementById('status');
+
+        let audioContext = null;
+        let analyser = null;
+        let microphone = null;
+        let scriptNode = null;
+        let isTunerActive = false;
+        let currentPreset = 'guitar';
+
+        // Инициализация Web Audio API
+        async function initAudio() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                microphone = audioContext.createMediaStreamSource(stream);
+                scriptNode = audioContext.createScriptProcessor(2048, 1, 1);
+
+                microphone.connect(analyser);
+                analyser.connect(scriptNode);
+                scriptNode.connect(audioContext.destination);
+
+                analyser.fftSize = 2048;
+                const bufferLength = analyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+
+                scriptNode.onaudioprocess = () => {
+                    analyser.getByteFrequencyData(dataArray);
+                    const dominantFrequency = getDominantFrequency(dataArray, audioContext.sampleRate);
+                    updateTuner(dominantFrequency);
+                };
+
+                status.textContent = 'Микрофон активен. Играйте на инструменте...';
+                isTunerActive = true;
+                updateUI();
+            } catch (err) {
+                status.textContent = `Ошибка доступа к микрофону: ${err.message}`;
+            }
+        }
+
+        // Определение доминирующей частоты
+        function getDominantFrequency(dataArray, sampleRate) {
+            let maxIndex = 0;
+            let maxValue = 0;
+
+            for (let i = 4; i < dataArray.length; i++) {
+                if (dataArray[i] > maxValue) {
+                    maxValue = dataArray[i];
+                    maxIndex = i;
+                }
+            }
+
+            // Преобразование индекса в частоту
+            return (maxIndex * sampleRate) / dataArray.length;
+        }
+
+        // Обновление интерфейса тюнера
+        function updateTuner(frequency) {
+            if (!isTunerActive) return;
+
+            frequencyDisplay.textContent = `${frequency.toFixed(2)} Гц`;
+
+            const preset = TUNING_PRESETS[currentPreset];
+            let closestNote = 0;
+            let minDiff = Infinity;
+
+            // Находим ближайшую ноту из пресета
+            for (let i = 0; i < preset.length; i++) {
+                const diff = Math.abs(frequency - preset[i]);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    closestNote = i;
+                }
+            }
+
+            const targetFreq = preset[closestNote];
+            const noteName = NOTE_NAMES[closestNote] || '?';
+            noteDisplay.textContent = noteName;
+
+            // Рассчитываем отклонение в процентах (-100% до +100%)
+            const deviation = ((frequency - targetFreq) / targetFreq) * 100;
+            const clampedDeviation =
