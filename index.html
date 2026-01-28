@@ -1,283 +1,195 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <title>Онлайн тюнер для акустической гитары</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 700px;
-      margin: 40px auto;
-      padding: 20px;
-      background: #111;
-      color: #f0f0f0;
-    }
-    h1 {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    .status {
-      font-size: 1.1rem;
-      margin: 10px 0 20px;
-      text-align: center;
-    }
-    #meters {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-    .meter {
-      padding: 10px;
-      border-radius: 8px;
-      background: #222;
-      border: 1px solid #333;
-      text-align: center;
-    }
-    .label {
-      font-size: 0.9rem;
-      color: #bbb;
-    }
-    .note {
-      text-align: center;
-      font-size: 0.95rem;
-      color: #aaf;
-    }
-    #startBtn {
-      display: block;
-      margin: 0 auto;
-      padding: 12px 20px;
-      font-size: 1rem;
-      border-radius: 6px;
-      border: none;
-      background: #2e8b57;
-      color: white;
-      cursor: pointer;
-    }
-    #startBtn:disabled {
-      background: #555;
-      cursor: not-allowed;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <title>Онлайн‑тюнер для гитары</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+            background-color: #f0f0f0;
+        }
+        #container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        canvas {
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin: 20px 0;
+            background-color: #f9f9f9;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #status, #note {
+            margin: 10px 0;
+            font-size: 18px;
+        }
+        .tuned {
+            color: green;
+        }
+        .untuned {
+            color: red;
+        }
+    </style>
 </head>
 <body>
-  <h1>Онлайн тюнер — акустическая гитара</h1>
-  <div class="status" id="status">Нажмите «Начать» и разрешите доступ к микрофону</div>
-
-  <div id="meters" aria-label="Приборы настройки струн">
-    <!-- Проставим 6 секций под струны -->
-    <div class="meter" id="string6">
-      <div class="label">Струна 6 (E2)</div>
-      <div class="value" id="val6">—</div>
-      <div class="hint" id="hint6" style="color:#aaa; font-size:0.8rem;">Смещение: —</div>
+    <div id="container">
+        <h1>Онлайн‑тюнер для гитары</h1>
+        <button id="startButton">Разрешить микрофон</button>
+        <div id="status">Ожидание доступа к микрофону...</div>
+        <canvas id="tunerCanvas" width="600" height="200"></canvas>
+        <div id="note">Струна: —</div>
     </div>
-    <div class="meter" id="string5">
-      <div class="label">Струна 5 (A2)</div>
-      <div class="value" id="val5">—</div>
-      <div class="hint" id="hint5" style="color:#aaa; font-size:0.8rem;">Смещение: —</div>
-    </div>
-    <div class="meter" id="string4">
-      <div class="label">Струна 4 (D3)</div>
-      <div class="value" id="val4">—</div>
-      <div class="hint" id="hint4" style="color:#aaa; font-size:0.8rem;">Смещение: —</div>
-    </div>
-    <div class="meter" id="string3">
-      <div class="label">Струна 3 (G3)</div>
-      <div class="value" id="val3">—</div>
-      <div class="hint" id="hint3" style="color:#aaa; font-size:0.8rem;">Смещение: —</div>
-    </div>
-    <div class="meter" id="string2">
-      <div class="label">Струна 2 (B3)</div>
-      <div class="value" id="val2">—</div>
-      <div class="hint" id="hint2" style="color:#aaa; font-size:0.8rem;">Смещение: —</div>
-    </div>
-    <div class="meter" id="string1">
-      <div class="label">Струна 1 (E4)</div>
-      <div class="value" id="val1">—</div>
-      <div class="hint" id="hint1" style="color:#aaa; font-size:0.8rem;">Смещение: —</div>
-    </div>
-  </div>
 
-  <button id="startBtn">Начать</button>
-  <p class="note" id="note">Подсказка: окно может просить о доступе к микрофону. Разрешите его.</p>
+    <script>
+        const canvas = document.getElementById('tunerCanvas');
+        const ctx = canvas.getContext('2d');
+        const startButton = document.getElementById('startButton');
+        const statusDiv = document.getElementById('status');
+        const noteDiv = document.getElementById('note');
 
-  <script>
-    // Настройки
-    const TARGET_NOTES = [
-      { note: 82.41, string: 6, name: "E2" }, // частоты в Hz для E2, A2, D3, G3, B3, E4
-      { note: 110.00, string: 5, name: "A2" },
-      { note: 146.83, string: 4, name: "D3" },
-      { note: 196.00, string: 3, name: "G3" },
-      { note: 246.94, string: 2, name: "B3" },
-      { note: 329.63, string: 1, name: "E4" }
-    ].reverse(); // чтобы 6 была внизу (наглядно)
-    // Мы будем распознавать ближайшую частоту к этим нотам
+        // Эталонные частоты открытых струн гитары (стандарт EADGBE)
+        const guitarStrings = [
+            { name: 'E2', freq: 82.41 },
+            { name: 'A2', freq: 110.00 },
+            { name: 'D3', freq: 146.83 },
+            { name: 'G3', freq: 196.00 },
+            { name: 'B3', freq: 246.94 },
+            { name: 'E4', freq: 329.63 }
+        ];
 
-    const startBtn = document.getElementById('startBtn');
-    const statusEl = document.getElementById('status');
-    const noteEl = document.getElementById('note');
+        let analyser = null;
+        let microphone = null;
 
-    // Вывод значений
-    const valEls = [
-      document.getElementById('val1'),
-      document.getElementById('val2'),
-      document.getElementById('val3'),
-      document.getElementById('val4'),
-      document.getElementById('val5'),
-      document.getElementById('val6')
-    ];
+        // Рисуем диаграмму
+        function drawTuner(delta) {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const radius = 80;
 
-    // Подсказки для каждой струны
-    const hintEls = [
-      document.getElementById('hint1'),
-      document.getElementById('hint2'),
-      document.getElementById('hint3'),
-      document.getElementById('hint4'),
-      document.getElementById('hint5'),
-      document.getElementById('hint6')
-    ];
+            // Фон
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+            ctx.fillStyle = '#f0f0f0';
+            ctx.fill();
+            ctx.stroke();
 
-    let audioCtx, analyser, mediaStream;
-    let freqDataArray;
-    let rafId;
+            // Стрелка
+            const arrowLength = radius * 0.8;
+            const angle = delta * (Math.PI / 4); // макс. отклонение ±45°
+            const endX = centerX + arrowLength * Math.sin(angle);
+            const endY = centerY - arrowLength * Math.cos(angle);
 
-    // Преобразование частоты в ближайшую ноту
-    function closestNoteFrequency(freq) {
-      // Современный подход: сравнение с целевыми частотами по отношению к октавам
-      // Найдем ближайшую точку из TARGET_NOTES
-      let minDiff = Infinity;
-      let closest = null;
-      for (const t of TARGET_NOTES) {
-        const diff = Math.abs(freq - t.note);
-        if (diff < minDiff) {
-          minDiff = diff;
-          closest = t;
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(endX, endY);
+            ctx.lineWidth = 6;
+            ctx.strokeStyle = delta === 0 ? 'green' : 'red';
+            ctx.stroke();
+
+            // Центр (точка)
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 5, 0, 2 * Math.PI);
+            ctx.fillStyle = 'black';
+            ctx.fill();
+
+            // Подписи
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = 'gray';
+            ctx.fillText('Ниже', centerX - radius - 20, centerY + 10);
+            ctx.fillText('Выше', centerX + radius + 20, centerY + 10);
+            ctx.fillText('Точно', centerX, centerY + radius + 20);
         }
-      }
-      return closest;
-    }
 
-    // Основной цикл анализа спектра
-    function tick() {
-      if (!analyser || !freqDataArray) return;
-      analyser.getFloatFrequencyData(freqDataArray); // dBFS
+        // Определяем ближайшую струну и отклонение
+        function getClosestString(freq) {
+            if (freq < 60 || freq > 400) return null;
 
-      // Преобразуем в линейные частоты через вейвлет/пик-файнд не нужен; упрощенно пробегаемся по окнам
-      // Мы используем метод для приблизительного определения основной частоты по пику в линейном диапазоне
-      // Частота по пику: idx * sampleRate / fftSize
-      const sampleRate = audioCtx.sampleRate;
-      const fftSize = analyser.fftSize;
-      // Найдем максимум по амплитуде ниже некоторого порога
-      // freqDataArray хранит dB, где выше - более громко. Найдем индекс максимального отрицательного значения (наибольший |value|)
-      let maxVal = -Infinity;
-      let maxIndex = -1;
-      for (let i = 0; i < freqDataArray.length; i++) {
-        const v = freqDataArray[i];
-        if (v > maxVal) { // максимальная мощность в dB
-          maxVal = v;
-          maxIndex = i;
+            let minDiff = Infinity;
+            let bestString = null;
+
+            for (const str of guitarStrings) {
+                const diff = Math.abs(freq - str.freq);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    bestString = str;
+                }
+            }
+
+            const delta = (freq - bestString.freq) / bestString.freq;
+            return { string: bestString, delta: delta };
         }
-      }
-      // Примерная частота
-      const freq = maxIndex > 0 ? maxIndex * sampleRate / fftSize : 0;
 
-      // Но часто пику нет в диапазоне. Попытка другого способа: используем гистограмму по спектру низких частот
-      // Для простоты воспользуемся другим подходом: пиковый метод по ближайшему окну ниже 1000 Hz
-      // Реалистичная реализация потребует аналитики, здесь упрощение:
-      const estimatedFreq = estimateFundamental(freqDataArray, sampleRate, fftSize);
+        // Анализ аудио
+        function analyseAudio() {
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteFrequencyData(dataArray);
 
-      // обновление UI
-      updateDisplay(estimatedFreq);
+            // Находим пик частоты (упрощённо)
+            let maxVal = 0;
+            let maxIndex = 0;
+            for (let i = 0; i < bufferLength; i++) {
+                if (dataArray[i] > maxVal) {
+                    maxVal = dataArray[i];
+                    maxIndex = i;
+                }
+            }
 
-      rafId = requestAnimationFrame(tick);
-    }
+            // Переводим индекс в частоту
+            const sourceSampleRate = 48000; // примерная частота дискретизации
+            const binWidth = sourceSampleRate / bufferLength;
+            const estimatedFreq = maxIndex * binWidth;
 
-    // Простейшее приближенное оценивание фундаментальной частоты по спектру
-    function estimateFundamental(freqDataArray, sampleRate, fftSize) {
-      // Поиск локального максимума в диапазоне до 1000 Hz (для струн)
-      const nyquist = sampleRate / 2;
-      const maxHz = Math.min(1000, nyquist);
-      const binSize = sampleRate / fftSize;
-      const maxBin = Math.floor(maxHz / binSize);
-      let peakBin = -1;
-      let peakVal = -Infinity;
-      // freqDataArray хранит dB: ищем максимум в диапазоне
-      for (let i = 0; i <= maxBin && i < freqDataArray.length; i++) {
-        const v = freqDataArray[i];
-        if (v > peakVal) {
-          peakVal = v;
-          peakBin = i;
+            const result = getClosestString(estimatedFreq);
+
+            if (result) {
+                const { string, delta } = result;
+                noteDiv.textContent = `Струна: ${string.name} (${string.freq.toFixed(2)} Гц)`;
+                noteDiv.className = delta === 0 ? 'tuned' : 'untuned';
+
+                // Рисуем стрелку
+                drawTuner(delta);
+            } else {
+                noteDiv.textContent = 'Струна: —';
+                noteDiv.className = '';
+                drawTuner(0);
+            }
+
+            requestAnimationFrame(analyseAudio);
         }
-      }
-      const freq = peakBin > 0 ? peakBin * binSize : 0;
-      // вернуть freq или 0
-      return freq;
-    }
 
-    function updateDisplay(freq) {
-      // Найдем ближайшую струну
-      if (!freq || freq <= 0) {
-        valEls.forEach(e => e.textContent = '—');
-        hintEls.forEach(e => e.textContent = 'Смещение: —');
-        statusEl.textContent = 'Ожидание сигнала...';
-        return;
-      }
+        // Запуск микрофона
+        startButton.addEventListener('click', async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                microphone = audioContext.createMediaStreamSource(stream);
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 2048;
+                microphone.connect(analyser);
 
-      // Найти ближайшую струну
-      const nearest = closestNoteFrequency(freq);
-      // Распространение: для всех струн пометим текущее значение, а для ближайшей — подсветим
-      const order = [6,5,4,3,2,1]; // соответствие индексам val1..val6
-      // Вычислим DOM-индексы для струны
-      const noteName = nearest ? nearest.name : '';
-      const targetFreq = nearest ? nearest.note : null;
+                startButton.disabled = true;
+                statusDiv.textContent = 'Микрофон активен. Играйте на струне...';
+                statusDiv.style.color = 'green';
 
-      // Обновим значения струн
-      // Преобразуем freq в строку с двумя знаками после запятой
-      const fStr = freq.toFixed(1);
-      // Заполним все струны: если струна не найдена, оставим '—'
-      // Выводим простую визуализацию: ближайшая струна — подсветим в UI
-      for (let i = 0; i < 6; i++) {
-        valEls[i].textContent = freq ? fStr : '—';
-        if (nearest && order[i] === nearest.string) {
-          hintEls[i].textContent = `Ближе к ${nearest.name} (${nearest.string}) — настройте под ${nearest.name} ≈ ${nearest.note.toFixed(1)} Hz`;
-        } else {
-          hintEls[i].textContent = 'Смещение: —';
-        }
-      }
-
-      // Уведомление о целевой струне
-      if (nearest) {
-        statusEl.textContent = `Приближено к струне ${nearest.string} (${nearest.name}). Подтягивайте/расшатывайте до точности примерно ±1–2 Hz.`;
-      } else {
-        statusEl.textContent = 'Определение частоты неизвестно. Попробуйте ближе говорить в микрофон.';
-      }
-    }
-
-    // Инициализация аудио
-    async function startAudio() {
-      if (audioCtx) return;
-      try {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: { autoGainControl: false, echoCancellation: false, noiseSuppression: false } });
-        mediaStream = stream;
-        const source = audioCtx.createMediaStreamSource(stream);
-        analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 2048;
-        analyser.smoothingTimeConstant = 0.8;
-        source.connect(analyser);
-        freqDataArray = new Float32Array(analyser.frequencyBinCount);
-        statusEl.textContent = 'Сигнал получен. Тюнер активен.';
-        // Запуск цикла
-        rafId = requestAnimationFrame(tick);
-      } catch (e) {
-        statusEl.textContent = 'Не удалось получить доступ к микрофону: ' + e.message;
-      }
-    }
-
-    startBtn.addEventListener('click', () => {
-      startBtn.disabled = true;
-      startAudio();
-    });
-  </script>
-</body>
-</html>
+                analyseAudio();
+            } catch (err) {
