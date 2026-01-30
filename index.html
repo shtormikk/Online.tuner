@@ -108,7 +108,7 @@
       // Идея: выбрать частоту с максимальной амплитудой в диапазоне 80-1000 Гц (для гитары).
       const sampleRate = audioCtx.sampleRate;
       const nyquist = sampleRate / 2;
-      const minHz = 100;
+      const minHz = 150;
       const maxHz = 1000;
       const minIndex = Math.floor(minHz / nyquist * dataArray.length);
       const maxIndex = Math.floor(maxHz / nyquist * dataArray.length);
